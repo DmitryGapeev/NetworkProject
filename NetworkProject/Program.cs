@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using static System.Int32;
 
 namespace NetworkProject
 {
@@ -31,11 +32,15 @@ namespace NetworkProject
 			foreach (var link in labelSettingLinks)
 				Console.WriteLine($"{link.From.Name}->{link.To.Name}");
 
-			cost = network.FindLabelSettingsPath(network.Nodes[0], network.Nodes[network.Nodes.Count - 2], out var labelCorrectPath);
+			/*cost = network.FindCorrectLabelPath(network.Nodes[0], network.Nodes[network.Nodes.Count - 2], out var labelCorrectPath);
 			Console.WriteLine($"path from {network.Nodes[0].Name} to {network.Nodes[network.Nodes.Count - 2].Name} cost = {cost}");
 
 			foreach (var link in labelCorrectPath)
-				Console.WriteLine($"{link.From.Name}->{link.To.Name}");
+				Console.WriteLine($"{link.From.Name}->{link.To.Name}");*/
+
+			network.FindAllPairsPaths(out var distance, out var via);
+			cost = network.FindAllPairsPath(network.Nodes[0], network.Nodes[network.Nodes.Count - 2], distance, via);
+			Console.WriteLine($"find all pairs cost = {cost}");
 
 			Console.ReadKey();
 		}
@@ -99,6 +104,8 @@ namespace NetworkProject
 		public bool Visited { get; set; }
 
 		public bool FromLink { get; set; }
+
+		public int Index { get; set; }
 
 	public Node(string name)
 		{
@@ -436,6 +443,63 @@ namespace NetworkProject
 			return FindPathByTree(from, to, out pathLinks);
 		}
 
-		
+		public void FindAllPairsPaths(out decimal[,] distance, out int[,] via)
+		{
+			const int infinity = MaxValue / 2;
+			var count = Nodes.Count;
+			distance = new decimal[count, count];
+			via = new int[count, count];
+			var index = 0;
+
+			foreach (var node in Nodes)
+				node.Index = index++;
+
+			for (var i = 0; i < count; i++)
+			for (var j = 0; j < count; j++)
+			{
+				distance[i, j] = infinity;
+				via[i, j] = -1;
+			}
+
+			foreach (var node in Nodes)
+			{
+				distance[node.Index, node.Index] = 0;
+				via[node.Index, node.Index] = node.Index;
+
+				foreach (var link in node.Links)
+				{
+					distance[node.Index, link.To.Index] = link.Cost;
+					via[node.Index, link.To.Index] = link.To.Index;
+				}
+			}
+
+			for(var viaIndex = 0; viaIndex < count; viaIndex++)
+				for(var fromIndex = 0;fromIndex < count;fromIndex++)
+				for (var toIndex = 0; toIndex < count; toIndex++)
+				{
+					var newDistance = distance[fromIndex, viaIndex] + distance[viaIndex, toIndex];
+					if (newDistance < distance[fromIndex, toIndex])
+					{
+						distance[fromIndex, toIndex] = newDistance;
+						via[fromIndex, toIndex] = viaIndex;
+					}
+				}
+
+		}
+
+		public decimal FindAllPairsPath(Node from, Node to, decimal[,] distance, int[,] via)
+		{
+			const int infinity = MaxValue / 2;
+			if (from.Index == to.Index) return 0;
+
+			if (distance[from.Index, to.Index] == infinity) return -1;
+
+			var viaIndex = via[from.Index, to.Index];
+
+			if (viaIndex == to.Index) return distance[from.Index, to.Index];
+
+			return FindAllPairsPath(Nodes[from.Index], Nodes[viaIndex], distance, via) +
+			       FindAllPairsPath(Nodes[viaIndex], Nodes[to.Index], distance, via);
+		}
 	}
 }
